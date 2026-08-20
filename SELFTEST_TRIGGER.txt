@@ -1,0 +1,1 @@
+CommandDesk API self-test trigger
