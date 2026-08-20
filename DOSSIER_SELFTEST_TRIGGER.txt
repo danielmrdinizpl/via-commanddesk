@@ -1,0 +1,1 @@
+CommandDesk dossier self-test trigger
