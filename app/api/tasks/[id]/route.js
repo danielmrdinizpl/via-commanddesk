@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "../../../../lib/auth.js";
 import { q, tx } from "../../../../lib/db.js";
+import { scoreTask } from "../../../../lib/scoring.js";
 
 const allowed = new Set([
   "status",
@@ -37,6 +38,87 @@ async function assertOrgReferences(orgId, projectId, ownerId) {
       [ownerId, orgId]
     );
     if (!owner.rowCount) badRequest("Responsável inválido para esta organização.");
+  }
+}
+
+export async function GET(request, { params }) {
+  try {
+    const s = await requireSession(request);
+    const { id } = await params;
+
+    const taskResult = await q(
+      `SELECT t.*, p.name project_name, u.name owner_name
+       FROM tasks t
+       LEFT JOIN projects p ON p.id=t.project_id
+       LEFT JOIN users u ON u.id=t.owner_id
+       WHERE t.organization_id=$1 AND t.id=$2`,
+      [s.orgId, id]
+    );
+
+    if (!taskResult.rowCount) {
+      return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
+    }
+
+    const task = taskResult.rows[0];
+    const [activityResult, decisionsResult, pendingResult, emailsResult] = await Promise.all([
+      q(
+        `SELECT a.*, u.name actor_name
+         FROM activity a
+         LEFT JOIN users u ON u.id=a.actor_user_id
+         WHERE a.organization_id=$1 AND a.task_id=$2
+         ORDER BY a.created_at DESC
+         LIMIT 100`,
+        [s.orgId, id]
+      ),
+      q(
+        `SELECT d.*, u.name owner_name
+         FROM decisions d
+         LEFT JOIN users u ON u.id=d.owner_id
+         WHERE d.organization_id=$1 AND d.task_id=$2
+         ORDER BY d.created_at DESC`,
+        [s.orgId, id]
+      ),
+      q(
+        `SELECT p.*, u.name owner_name
+         FROM pending_items p
+         LEFT JOIN users u ON u.id=p.owner_id
+         WHERE p.organization_id=$1 AND p.task_id=$2
+         ORDER BY p.created_at DESC`,
+        [s.orgId, id]
+      ),
+      q(
+        `SELECT id, subject, from_name, from_email, received_at, preview, body_excerpt,
+                score, unread, action_suggested, web_link, source
+         FROM emails
+         WHERE organization_id=$1 AND task_id=$2
+         ORDER BY received_at DESC NULLS LAST, created_at DESC
+         LIMIT 50`,
+        [s.orgId, id]
+      )
+    ]);
+
+    const decisions = decisionsResult.rows;
+    const pending = pendingResult.rows;
+    const emails = emailsResult.rows;
+    const executive = scoreTask(task, decisions, emails, pending);
+
+    return NextResponse.json({
+      task,
+      executive,
+      summary: {
+        activity: activityResult.rowCount,
+        pendingDecisions: decisions.filter((item) => item.status === "Pendente").length,
+        openPending: pending.filter((item) => item.status === "Aberta").length,
+        emails: emails.length,
+        actionEmails: emails.filter((item) => item.unread && item.action_suggested).length
+      },
+      activity: activityResult.rows,
+      decisions,
+      pending,
+      emails
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
 
