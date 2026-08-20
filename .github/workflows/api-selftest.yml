@@ -1,0 +1,28 @@
+name: CommandDesk API Self-Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Validar API de tarefas em produção
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://via-commanddesk-v4-1-pilot.vercel.app/api/selftest/tasks"
+          for attempt in $(seq 1 24); do
+            body=$(curl -sS --connect-timeout 10 --max-time 30 "$URL" || true)
+            echo "attempt=${attempt} response=${body}"
+            if printf '%s' "$body" | grep -q '"ok":true'; then
+              echo "CommandDesk API self-test passed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "CommandDesk API self-test failed"
+          exit 1
