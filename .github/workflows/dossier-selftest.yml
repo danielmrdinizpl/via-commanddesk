@@ -1,0 +1,30 @@
+name: CommandDesk Dossier Self-Test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validar Dossiê e ranking executivo
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://via-commanddesk-v4-1-pilot.vercel.app"
+          SNAPSHOT=$(curl -fsS --max-time 30 "$BASE/api/snapshot")
+          DOSSIER=$(curl -fsS --max-time 30 "$BASE/api/tasks/20000000-0000-0000-0000-000000000002")
+          HTML=$(curl -fsSL --max-time 30 "$BASE/")
+
+          echo "$SNAPSHOT" | jq -e '.ranked[0].id == "20000000-0000-0000-0000-000000000002"' >/dev/null
+          echo "$SNAPSHOT" | jq -e '.ranked[0].executive.reasons | index("atrasada") != null' >/dev/null
+          echo "$DOSSIER" | jq -e '.task.id == "20000000-0000-0000-0000-000000000002"' >/dev/null
+          echo "$DOSSIER" | jq -e '.summary.openPending == 1' >/dev/null
+          echo "$DOSSIER" | jq -e '.pending[0].title == "Receber retorno do fornecedor"' >/dev/null
+          printf '%s' "$HTML" | grep -q 'pilot-dossier.js'
+
+          echo "snapshot_rank=$(echo "$SNAPSHOT" | jq -c '.ranked[0].executive')"
+          echo "dossier=$(echo "$DOSSIER" | jq -c '{executive,summary,pending:[.pending[].title]}')"
+          echo "Dossier self-test passed"
