@@ -1,0 +1,24 @@
+{
+  "name": "via-commanddesk-v4-1-pilot-ui-master",
+  "version": "4.1.0",
+  "private": true,
+  "description": "Via CommandDesk V4.1 Pilot — versão multiusuário com PostgreSQL, Microsoft 365 e Outlook/Graph.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "vercel-build": "next build"
+  },
+  "dependencies": {
+    "jose": "^6.0.0",
+    "next": "^15.5.0",
+    "pg": "^8.16.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

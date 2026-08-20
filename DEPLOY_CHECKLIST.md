@@ -1,0 +1,23 @@
+# Checklist de Publicação — V4.1 Pilot
+
+- [ ] Criar PostgreSQL gerenciado.
+- [ ] Configurar `DATABASE_URL`.
+- [ ] Gerar `SESSION_SECRET`.
+- [ ] Gerar `TOKEN_ENCRYPTION_KEY`.
+- [ ] Rodar `npm run db:migrate`.
+- [ ] Rodar `npm run db:seed` apenas no ambiente Pilot.
+- [ ] Publicar com `PILOT_DEMO_MODE=true`.
+- [ ] Validar acesso de 2 ou mais navegadores à mesma base.
+- [ ] Criar domínio/subdomínio definitivo.
+- [ ] Registrar aplicação no Microsoft Entra.
+- [ ] Cadastrar Redirect URI `/api/auth/callback`.
+- [ ] Adicionar `User.Read` e `Mail.Read`.
+- [ ] Criar Client Secret.
+- [ ] Configurar credenciais Microsoft na hospedagem.
+- [ ] Alterar `PILOT_DEMO_MODE=false`.
+- [ ] Testar login Microsoft.
+- [ ] Testar sincronização Outlook.
+- [ ] Validar associação de e-mails a tarefas.
+- [ ] Definir 3–10 usuários do piloto.
+- [ ] Definir política interna de acesso e retenção.
+- [ ] Fazer backup inicial do banco.
