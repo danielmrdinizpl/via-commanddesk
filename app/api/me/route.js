@@ -6,25 +6,26 @@ export async function GET(request) {
   const session = await readSession(request);
   if (!session) return NextResponse.json({ authenticated: false, demo: false }, { status: 401 });
 
-  let connected = false;
-  if (!demoModeEnabled()) {
-    const r = await q(
-      `SELECT 1 FROM integration_accounts
-       WHERE organization_id=$1 AND user_id=$2 AND provider='microsoft'`,
-      [session.orgId, session.userId]
-    );
-    connected = r.rowCount > 0;
-  }
+  const [userR, orgR, integrationR] = await Promise.all([
+    q(`SELECT id,name,email,role,department,job_title FROM users WHERE id=$1 AND organization_id=$2`, [session.userId, session.orgId]),
+    q(`SELECT id,name FROM organizations WHERE id=$1`, [session.orgId]),
+    q(`SELECT 1 FROM integration_accounts WHERE organization_id=$1 AND user_id=$2 AND provider='microsoft'`, [session.orgId, session.userId])
+  ]);
+
+  const user = userR.rows[0] || {
+    id: session.userId,
+    name: session.name,
+    email: session.email,
+    role: session.role,
+    department: null,
+    job_title: null
+  };
 
   return NextResponse.json({
     authenticated: true,
-    demo: !!session.demo,
-    user: {
-      id: session.userId,
-      name: session.name,
-      email: session.email,
-      role: session.role
-    },
-    outlookConnected: connected
+    demo: demoModeEnabled(),
+    organization: orgR.rows[0] || null,
+    user,
+    outlookConnected: integrationR.rowCount > 0
   });
 }
