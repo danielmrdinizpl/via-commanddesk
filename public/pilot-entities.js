@@ -3,6 +3,8 @@
   style.textContent = `
     #entityModal .dialog{width:min(560px,94vw)}
     #entityModal .entity-note{font-size:9px;color:#858a91;margin:-4px 0 10px}
+    #entityModal .entity-field{display:grid;gap:5px}
+    #entityModal .entity-field label{font-size:9px;font-weight:750;color:#626872}
     #projectTable tr,#projectsSide .row{cursor:pointer;transition:.15s ease}
     #projectTable tr:hover,#projectsSide .row:hover{background:#fff7f1}
   `;
@@ -68,9 +70,9 @@
       : 'Cria um projeto real na organização atual.';
     fields.innerHTML = `
       <div class="full"><input id="epName" placeholder="Nome do projeto" value="${esc(project?.name || '')}"></div>
-      <select id="epStatus">${projectStatusOptions(project?.status || 'Em andamento')}</select>
-      <input id="epProgress" type="number" min="0" max="100" value="${Number(project?.progress ?? 0)}" placeholder="Progresso %">
-      <select class="full" id="epOwner"><option value="">Sem responsável</option>${teamOptions(project?.owner_id || '')}</select>`;
+      <div class="entity-field"><label for="epStatus">Status</label><select id="epStatus">${projectStatusOptions(project?.status || 'Em andamento')}</select></div>
+      <div class="entity-field"><label for="epProgress">Progresso (%)</label><input id="epProgress" type="number" min="0" max="100" value="${Number(project?.progress ?? 0)}" placeholder="0 a 100"></div>
+      <div class="entity-field full"><label for="epOwner">Responsável</label><select id="epOwner"><option value="">Sem responsável</option>${teamOptions(project?.owner_id || '')}</select></div>`;
     save.textContent = project ? 'Salvar alterações' : 'Criar projeto';
     openModal();
   }
