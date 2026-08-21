@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "../../../../lib/auth.js";
+import { isPrivileged } from "../../../../lib/permissions.js";
 import { q, tx } from "../../../../lib/db.js";
 import { scoreTask } from "../../../../lib/scoring.js";
 
@@ -20,6 +21,12 @@ const priorities = new Set(["Alta", "Média", "Baixa"]);
 function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
+  throw error;
+}
+
+function forbidden(message = "FORBIDDEN") {
+  const error = new Error(message);
+  error.status = 403;
   throw error;
 }
 
@@ -126,6 +133,23 @@ export async function PATCH(request, { params }) {
   try {
     const s = await requireSession(request);
     const body = await request.json();
+    const { id } = await params;
+
+    const currentR = await q(
+      `SELECT id,owner_id FROM tasks WHERE organization_id=$1 AND id=$2`,
+      [s.orgId, id]
+    );
+    if (!currentR.rowCount) {
+      return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
+    }
+    const current = currentR.rows[0];
+
+    if (!isPrivileged(s) && current.owner_id !== s.userId) {
+      forbidden("Membros só podem editar tarefas atribuídas a si mesmos.");
+    }
+    if (!isPrivileged(s) && body.owner_id !== undefined && body.owner_id !== s.userId) {
+      forbidden("Membros não podem transferir tarefas para outro responsável.");
+    }
 
     if (body.status !== undefined && !statuses.has(body.status)) badRequest("Status inválido.");
     if (body.priority !== undefined && !priorities.has(body.priority)) badRequest("Prioridade inválida.");
@@ -153,7 +177,6 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "Nenhum campo atualizável." }, { status: 400 });
     }
 
-    const { id } = await params;
     values.push(s.orgId, id);
 
     const task = await tx(async (client) => {
