@@ -93,3 +93,11 @@
 
   window.CommandDeskDossier = { load: loadDossier, hide: hideDossier };
 })();
+
+(() => {
+  if (document.querySelector('script[data-commanddesk-entities]')) return;
+  const script = document.createElement('script');
+  script.src = '/pilot-entities.js';
+  script.dataset.commanddeskEntities = 'true';
+  document.body.appendChild(script);
+})();
