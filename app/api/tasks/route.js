@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "../../../lib/auth.js";
+import { isPrivileged } from "../../../lib/permissions.js";
 import { q, tx } from "../../../lib/db.js";
 
 const statuses = new Set(["A Fazer", "Em Andamento", "Bloqueada", "Concluída"]);
@@ -8,6 +9,12 @@ const priorities = new Set(["Alta", "Média", "Baixa"]);
 function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
+  throw error;
+}
+
+function forbidden(message = "FORBIDDEN") {
+  const error = new Error(message);
+  error.status = 403;
   throw error;
 }
 
@@ -57,8 +64,12 @@ export async function POST(request) {
     const status = body.status || "A Fazer";
     const priority = body.priority || "Média";
     const projectId = body.projectId || null;
-    const ownerId = body.ownerId || s.userId;
+    const requestedOwnerId = body.ownerId || s.userId;
+    const ownerId = isPrivileged(s) ? requestedOwnerId : s.userId;
 
+    if (!isPrivileged(s) && requestedOwnerId !== s.userId) {
+      forbidden("Membros só podem criar tarefas para si mesmos.");
+    }
     if (!statuses.has(status)) badRequest("Status inválido.");
     if (!priorities.has(priority)) badRequest("Prioridade inválida.");
     await assertOrgReferences(s.orgId, projectId, ownerId);
