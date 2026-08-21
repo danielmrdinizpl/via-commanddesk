@@ -1,0 +1,41 @@
+name: CommandDesk Entities Self-Test
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validar criação correta de Projeto e Time
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://via-commanddesk-v4-1-pilot.vercel.app"
+          MARK="SELFTEST-ENTITY-${GITHUB_RUN_ID}"
+          EMAIL="selftest.${GITHUB_RUN_ID}@via.local"
+
+          PROJECT=$(curl -fsS --max-time 30 -X POST "$BASE/api/projects" \
+            -H 'Content-Type: application/json' \
+            --data "{\"name\":\"${MARK}-PROJECT\",\"status\":\"Planejado\",\"progress\":7}")
+          MEMBER=$(curl -fsS --max-time 30 -X POST "$BASE/api/team" \
+            -H 'Content-Type: application/json' \
+            --data "{\"name\":\"${MARK}-MEMBER\",\"email\":\"${EMAIL}\",\"department\":\"Tecnologia\",\"jobTitle\":\"Teste\",\"role\":\"member\"}")
+          SNAP=$(curl -fsS --max-time 30 "$BASE/api/snapshot")
+          ENTITIES=$(curl -fsS --max-time 30 "$BASE/pilot-entities.js")
+
+          echo "$PROJECT" | jq -e --arg n "${MARK}-PROJECT" '.name == $n' >/dev/null
+          echo "$MEMBER" | jq -e --arg e "$EMAIL" '.email == $e' >/dev/null
+          echo "$SNAP" | jq -e --arg n "${MARK}-PROJECT" '.projects | any(.name == $n)' >/dev/null
+          echo "$SNAP" | jq -e --arg e "$EMAIL" '.team | any(.email == $e)' >/dev/null
+          echo "$SNAP" | jq -e --arg m "$MARK" '.tasks | all((.title | startswith($m)) | not)' >/dev/null
+          printf '%s' "$ENTITIES" | grep -q "current === 'projects'"
+          printf '%s' "$ENTITIES" | grep -q "current === 'team'"
+          printf '%s' "$ENTITIES" | grep -q "/api/projects"
+          printf '%s' "$ENTITIES" | grep -q "/api/team"
+
+          echo "project=$(echo "$PROJECT" | jq -c '{id,name,status,progress}')"
+          echo "member=$(echo "$MEMBER" | jq -c '{id,name,email,role,department}')"
+          echo "Entities self-test passed"
