@@ -85,4 +85,5 @@
   function loadScript(src,key){if(document.querySelector(`script[data-${key}]`))return;const script=document.createElement('script');script.src=src;script.setAttribute(`data-${key}`,'true');document.body.appendChild(script)}
   loadScript('/pilot-search.js','commanddesk-search');
   loadScript('/pilot-operations.js','commanddesk-operations');
+  loadScript('/pilot-rbac.js','commanddesk-rbac');
 })();
