@@ -97,10 +97,10 @@ export async function GET(request, { params }) {
         `SELECT id, subject, from_name, from_email, received_at, preview, body_excerpt,
                 score, unread, action_suggested, web_link, source
          FROM emails
-         WHERE organization_id=$1 AND task_id=$2
+         WHERE organization_id=$1 AND task_id=$2 AND user_id=$3
          ORDER BY received_at DESC NULLS LAST, created_at DESC
          LIMIT 50`,
-        [s.orgId, id]
+        [s.orgId, id, s.userId]
       )
     ]);
 
