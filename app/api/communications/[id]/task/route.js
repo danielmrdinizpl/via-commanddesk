@@ -9,8 +9,8 @@ export async function POST(request, { params }) {
     const body = await request.json().catch(() => ({}));
 
     const emailR = await q(
-      `SELECT * FROM emails WHERE id=$1 AND organization_id=$2`,
-      [id, s.orgId]
+      `SELECT * FROM emails WHERE id=$1 AND organization_id=$2 AND user_id=$3`,
+      [id, s.orgId, s.userId]
     );
     if (!emailR.rowCount) return NextResponse.json({ error: "Comunicação não encontrada." }, { status: 404 });
     const email = emailR.rows[0];
@@ -58,8 +58,10 @@ export async function POST(request, { params }) {
       );
 
       await client.query(
-        `UPDATE emails SET task_id=$1,action_suggested=false WHERE id=$2 AND organization_id=$3`,
-        [taskR.rows[0].id, id, s.orgId]
+        `UPDATE emails
+         SET task_id=$1,action_suggested=false
+         WHERE id=$2 AND organization_id=$3 AND user_id=$4`,
+        [taskR.rows[0].id, id, s.orgId, s.userId]
       );
 
       await client.query(

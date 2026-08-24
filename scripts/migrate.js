@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE TABLE IF NOT EXISTS emails (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   outlook_message_id text NOT NULL,
   internet_message_id text,
   subject text NOT NULL,
@@ -75,7 +76,7 @@ CREATE TABLE IF NOT EXISTS emails (
   web_link text,
   source text NOT NULL DEFAULT 'microsoft_graph',
   created_at timestamptz NOT NULL DEFAULT NOW(),
-  UNIQUE (organization_id, outlook_message_id)
+  UNIQUE (organization_id, user_id, outlook_message_id)
 );
 
 CREATE TABLE IF NOT EXISTS decisions (
@@ -128,7 +129,7 @@ CREATE TABLE IF NOT EXISTS integration_accounts (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_org_status ON tasks (organization_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_org_due ON tasks (organization_id, due_date);
-CREATE INDEX IF NOT EXISTS idx_emails_org_received ON emails (organization_id, received_at DESC);
+CREATE INDEX IF NOT EXISTS emails_org_user_received_idx ON emails (organization_id, user_id, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_emails_task ON emails (task_id);
 CREATE INDEX IF NOT EXISTS idx_decisions_task ON decisions (task_id);
 CREATE INDEX IF NOT EXISTS idx_pending_task ON pending_items (task_id);

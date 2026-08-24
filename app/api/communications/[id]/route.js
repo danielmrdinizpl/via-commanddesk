@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "../../../../lib/auth.js";
+import { isPrivileged } from "../../../../lib/permissions.js";
 import { q } from "../../../../lib/db.js";
 
 function badRequest(message) {
@@ -16,8 +17,8 @@ export async function GET(request, { params }) {
       `SELECT e.*, t.title task_title
        FROM emails e
        LEFT JOIN tasks t ON t.id=e.task_id AND t.organization_id=e.organization_id
-       WHERE e.id=$1 AND e.organization_id=$2`,
-      [id, s.orgId]
+       WHERE e.id=$1 AND e.organization_id=$2 AND e.user_id=$3`,
+      [id, s.orgId, s.userId]
     );
     if (!r.rowCount) return NextResponse.json({ error: "Comunicação não encontrada." }, { status: 404 });
     return NextResponse.json(r.rows[0]);
@@ -48,8 +49,16 @@ export async function PATCH(request, { params }) {
     if (body.taskId !== undefined) {
       const taskId = body.taskId || null;
       if (taskId) {
-        const task = await q("SELECT 1 FROM tasks WHERE id=$1 AND organization_id=$2", [taskId, s.orgId]);
+        const task = await q(
+          `SELECT owner_id FROM tasks WHERE id=$1 AND organization_id=$2`,
+          [taskId, s.orgId]
+        );
         if (!task.rowCount) badRequest("Tarefa inválida para esta organização.");
+        if (!isPrivileged(s) && task.rows[0].owner_id !== s.userId) {
+          const error = new Error("Membros só podem vincular comunicações às próprias tarefas.");
+          error.status = 403;
+          throw error;
+        }
       }
       fields.push(`task_id=$${i++}`);
       values.push(taskId);
@@ -61,10 +70,10 @@ export async function PATCH(request, { params }) {
 
     if (!fields.length) badRequest("Nenhum campo atualizável.");
 
-    values.push(id, s.orgId);
+    values.push(id, s.orgId, s.userId);
     const r = await q(
       `UPDATE emails SET ${fields.join(",")}
-       WHERE id=$${i++} AND organization_id=$${i}
+       WHERE id=$${i++} AND organization_id=$${i++} AND user_id=$${i}
        RETURNING *`,
       values
     );

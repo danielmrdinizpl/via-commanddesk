@@ -42,6 +42,6 @@ export async function GET(request) {
     res.cookies.delete(stateCookieName());
     return res;
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: error.status || 500 });
   }
 }
