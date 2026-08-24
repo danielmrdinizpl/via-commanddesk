@@ -83,7 +83,7 @@
   addButtons(); window.CommandDeskEntities={openProject,openTeamMember};
 
   function loadScript(src,key){if(document.querySelector(`script[data-${key}]`))return;const script=document.createElement('script');script.src=src;script.setAttribute(`data-${key}`,'true');document.body.appendChild(script)}
-  loadScript('/pilot-search.js','commanddesk-search');
-  loadScript('/pilot-operations.js','commanddesk-operations');
-  loadScript('/pilot-rbac.js','commanddesk-rbac');
+  loadScript('/pilot-search.js?v=20260824-tenant2','commanddesk-search');
+  loadScript('/pilot-operations.js?v=20260824-tenant2','commanddesk-operations');
+  loadScript('/pilot-rbac.js?v=20260824-tenant2','commanddesk-rbac');
 })();
