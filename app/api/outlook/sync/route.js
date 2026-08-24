@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireSession, demoModeEnabled } from "../../../../lib/auth.js";
+import { isPrivileged } from "../../../../lib/permissions.js";
 import { graphAccessToken, graphGet } from "../../../../lib/microsoft.js";
 import { q } from "../../../../lib/db.js";
 import { classifyEmail } from "../../../../lib/scoring.js";
@@ -32,8 +33,10 @@ export async function POST(request) {
       `SELECT t.*, p.name project_name
        FROM tasks t
        LEFT JOIN projects p ON p.id=t.project_id
-       WHERE t.organization_id=$1 AND t.status <> 'Concluída'`,
-      [s.orgId]
+       WHERE t.organization_id=$1
+         AND t.status <> 'Concluída'
+         AND ($2::boolean OR t.owner_id=$3)`,
+      [s.orgId, isPrivileged(s), s.userId]
     );
 
     let messages;
@@ -56,13 +59,13 @@ export async function POST(request) {
       const fromEmail = m.from?.emailAddress?.address || "";
       const r = await q(
         `INSERT INTO emails
-         (organization_id,outlook_message_id,subject,from_name,from_email,received_at,preview,
+         (organization_id,user_id,outlook_message_id,subject,from_name,from_email,received_at,preview,
           task_id,score,unread,action_suggested,web_link,source)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-         ON CONFLICT (organization_id,outlook_message_id) DO NOTHING
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+         ON CONFLICT (organization_id,user_id,outlook_message_id) DO NOTHING
          RETURNING id`,
         [
-          s.orgId, m.id, m.subject || "(sem assunto)", fromName, fromEmail,
+          s.orgId, s.userId, m.id, m.subject || "(sem assunto)", fromName, fromEmail,
           m.receivedDateTime || new Date().toISOString(), m.bodyPreview || "",
           c.taskId, c.score, !m.isRead, c.actionSuggested, m.webLink || null,
           demoModeEnabled() ? "demo" : "microsoft_graph"
