@@ -17,26 +17,29 @@ export async function GET(request) {
     ]);
 
     const microsoft = accountsR.rows.find((row) => row.provider === "microsoft") || null;
-    const configured = Boolean(
+    const oauthReady = Boolean(
       process.env.MICROSOFT_CLIENT_ID &&
       process.env.MICROSOFT_CLIENT_SECRET &&
       process.env.APP_URL
     );
     const tenantId = orgR.rows[0]?.microsoft_tenant_id || null;
     const tenantLinked = Boolean(tenantId && tenantId !== "demo-via");
+    const isAdmin = s.role === "admin";
 
     return NextResponse.json({
       demo: demoModeEnabled(),
       role: s.role,
       microsoft: {
-        configured,
+        configured: oauthReady,
+        oauthReady,
         tenantLinked,
         connected: !!microsoft,
         scopes: microsoft?.scopes || null,
         connectedAt: microsoft?.connected_at || null,
         updatedAt: microsoft?.updated_at || null,
         syncAvailable: demoModeEnabled() || !!microsoft,
-        canBindTenant: s.role === "admin" && configured
+        canBindTenant: isAdmin,
+        bindReady: isAdmin && oauthReady
       }
     });
   } catch (error) {
