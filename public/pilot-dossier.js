@@ -97,7 +97,7 @@
 (() => {
   if (document.querySelector('script[data-commanddesk-entities]')) return;
   const script = document.createElement('script');
-  script.src = '/pilot-entities.js';
+  script.src = '/pilot-entities.js?v=20260824-tenant2';
   script.dataset.commanddeskEntities = 'true';
   document.body.appendChild(script);
 })();
