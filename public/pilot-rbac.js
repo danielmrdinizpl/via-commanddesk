@@ -109,18 +109,27 @@
       .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
       .then(({ ok, data }) => {
         if (!ok || !data?.microsoft?.canBindTenant) return;
+        const ms = data.microsoft;
         const actions = card.querySelector('.ops-actions') || card;
         const button = document.createElement('button');
         button.className = 'ops-btn';
         button.id = 'rbacBindTenant';
-        button.textContent = data.microsoft.tenantLinked ? 'Revalidar tenant Microsoft' : 'Vincular tenant Microsoft';
-        button.onclick = () => { location.href = '/api/integrations/microsoft/bind'; };
+        button.textContent = ms.tenantLinked ? 'Revalidar tenant Microsoft' : 'Vincular tenant Microsoft';
+        button.disabled = !ms.bindReady;
+        if (ms.bindReady) button.onclick = () => { location.href = '/api/integrations/microsoft/bind'; };
         actions.appendChild(button);
+
         const note = document.createElement('div');
         note.className = 'rbac-note';
-        note.textContent = data.microsoft.tenantLinked
-          ? 'Tenant corporativo já vinculado à organização.'
-          : 'Vincule o tenant antes de desativar o modo Demo.';
+        if (ms.tenantLinked) {
+          note.textContent = ms.bindReady
+            ? 'Tenant corporativo já vinculado à organização.'
+            : 'Tenant vinculado. A configuração OAuth Microsoft precisa ser concluída no ambiente para revalidar.';
+        } else {
+          note.textContent = ms.bindReady
+            ? 'Vincule o tenant corporativo antes de desativar o modo Demo.'
+            : 'Vínculo pendente: configure primeiro o aplicativo Microsoft Entra no ambiente. A opção permanece visível para indicar o próximo passo.';
+        }
         card.appendChild(note);
       })
       .catch(() => {});
