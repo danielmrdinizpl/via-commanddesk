@@ -2,11 +2,13 @@
   const style = document.createElement('style');
   style.textContent = `
     .rbac-readonly{opacity:.7;cursor:default!important}.rbac-note{font-size:8px;color:#8a8f96;margin-top:5px}.rbac-lock{font-size:8px;color:#a45d22;font-weight:800}
+    #tenantBindingCard{margin:0 0 12px;border-left:3px solid #ff6b19}
   `;
   document.head.appendChild(style);
 
   const has = (me, permission) => Array.isArray(me?.permissions) && me.permissions.includes(permission);
   let me = null;
+  let tenantLoadInFlight = false;
 
   async function getMe() {
     const response = await fetch('/api/me', { credentials: 'same-origin' });
@@ -99,40 +101,71 @@
     window.CommandDeskEntities.__rbacWrapped = true;
   }
 
+  function tenantCardSkeleton(host) {
+    let card = host.querySelector('#tenantBindingCard');
+    if (card) return card;
+    card = document.createElement('div');
+    card.className = 'ops-card';
+    card.id = 'tenantBindingCard';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+        <h3>Tenant Microsoft</h3><span class="ops-badge warn">ADMIN</span>
+      </div>
+      <p id="tenantBindingText">Verificando vínculo corporativo...</p>
+      <div class="ops-k">Organização</div><div class="ops-v">Microsoft Entra / Microsoft 365</div>
+      <div class="ops-actions"><button class="ops-btn primary" id="rbacBindTenant" disabled>Vincular tenant Microsoft</button></div>
+      <div class="rbac-note" id="tenantBindingNote">Carregando estado da integração.</div>`;
+    host.prepend(card);
+    return card;
+  }
+
   function enhanceTenantBinding() {
     const host = document.querySelector('#integration');
     if (!host || !me || me.user?.role !== 'admin') return;
-    const card = Array.from(host.querySelectorAll('.ops-card')).find((el) => el.textContent.includes('Microsoft 365 / Outlook'));
-    if (!card || card.querySelector('#rbacBindTenant')) return;
 
-    fetch('/api/integrations', { credentials: 'same-origin' })
+    const card = tenantCardSkeleton(host);
+    if (tenantLoadInFlight || card.dataset.loaded === '1') return;
+    tenantLoadInFlight = true;
+
+    fetch('/api/integrations', { credentials: 'same-origin', cache: 'no-store' })
       .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
       .then(({ ok, data }) => {
-        if (!ok || !data?.microsoft?.canBindTenant) return;
-        const ms = data.microsoft;
-        const actions = card.querySelector('.ops-actions') || card;
-        const button = document.createElement('button');
-        button.className = 'ops-btn';
-        button.id = 'rbacBindTenant';
-        button.textContent = ms.tenantLinked ? 'Revalidar tenant Microsoft' : 'Vincular tenant Microsoft';
-        button.disabled = !ms.bindReady;
-        if (ms.bindReady) button.onclick = () => { location.href = '/api/integrations/microsoft/bind'; };
-        actions.appendChild(button);
-
-        const note = document.createElement('div');
-        note.className = 'rbac-note';
-        if (ms.tenantLinked) {
-          note.textContent = ms.bindReady
-            ? 'Tenant corporativo já vinculado à organização.'
-            : 'Tenant vinculado. A configuração OAuth Microsoft precisa ser concluída no ambiente para revalidar.';
-        } else {
-          note.textContent = ms.bindReady
-            ? 'Vincule o tenant corporativo antes de desativar o modo Demo.'
-            : 'Vínculo pendente: configure primeiro o aplicativo Microsoft Entra no ambiente. A opção permanece visível para indicar o próximo passo.';
+        const button = card.querySelector('#rbacBindTenant');
+        const text = card.querySelector('#tenantBindingText');
+        const note = card.querySelector('#tenantBindingNote');
+        if (!ok || !data?.microsoft) {
+          if (text) text.textContent = 'Não foi possível consultar o estado do Microsoft 365.';
+          if (note) note.textContent = 'Recarregue a página. Se persistir, verifique /api/integrations.';
+          return;
         }
-        card.appendChild(note);
+
+        const ms = data.microsoft;
+        if (button) {
+          button.textContent = ms.tenantLinked ? 'Revalidar tenant Microsoft' : 'Vincular tenant Microsoft';
+          button.disabled = !ms.bindReady;
+          button.onclick = ms.bindReady ? () => { location.href = '/api/integrations/microsoft/bind'; } : null;
+        }
+        if (text) text.textContent = ms.tenantLinked
+          ? 'Tenant corporativo vinculado à organização atual.'
+          : 'O tenant corporativo ainda precisa ser vinculado à organização.';
+        if (note) {
+          if (ms.bindReady) {
+            note.textContent = ms.tenantLinked
+              ? 'OAuth Microsoft pronto. Você pode revalidar o vínculo.'
+              : 'OAuth Microsoft pronto. Clique para autenticar e vincular o tenant.';
+          } else {
+            note.textContent = 'A opção está visível, mas o OAuth ainda não está pronto. Configure MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET e APP_URL no ambiente de produção.';
+          }
+        }
+        card.dataset.loaded = '1';
       })
-      .catch(() => {});
+      .catch((error) => {
+        const text = card.querySelector('#tenantBindingText');
+        const note = card.querySelector('#tenantBindingNote');
+        if (text) text.textContent = 'Falha ao consultar o vínculo Microsoft.';
+        if (note) note.textContent = error.message || 'Erro ao consultar a integração.';
+      })
+      .finally(() => { tenantLoadInFlight = false; });
   }
 
   function observe() {
