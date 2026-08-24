@@ -18,7 +18,9 @@ export async function GET(request) {
       q(`SELECT * FROM projects WHERE organization_id=$1 ORDER BY created_at`, [org]),
       q(`SELECT id,name,email,role,department,job_title
          FROM users WHERE organization_id=$1 ORDER BY name`, [org]),
-      q(`SELECT * FROM emails WHERE organization_id=$1 ORDER BY received_at DESC LIMIT 100`, [org]),
+      q(`SELECT * FROM emails
+         WHERE organization_id=$1 AND user_id=$2
+         ORDER BY received_at DESC LIMIT 100`, [org, s.userId]),
       q(`SELECT * FROM decisions WHERE organization_id=$1 ORDER BY created_at DESC`, [org]),
       q(`SELECT * FROM pending_items WHERE organization_id=$1 ORDER BY due_date NULLS LAST`, [org])
     ]);
